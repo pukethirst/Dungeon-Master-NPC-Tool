@@ -1,0 +1,214 @@
+const readline = require('readline');
+const fetch = require('isomorphic-fetch');
+const fs = require('fs');
+const { parseString } = require('xml2js');
+
+const API_URL = 'https://api.openai.com/v1/chat/completions';
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+// Debug options
+const enableDebug = false; // Set to true to enable debug output
+const enableChatHistoryLog = true; // Set to true to log chat history
+const enableRequestBodyLog = true; // Set to true to log request body
+
+// Customizable variables
+const assistantName = 'Assistant'; // Assistant name
+const promptSymbol = '>'; // Prompt symbol
+const assistantNameColor = 'magenta'; // Assistant name color
+const assistantTextColor = 'yellow'; // Assistant text color
+const promptSymbolColor = 'cyan'; // Prompt symbol color
+const commandPrefix = '/'; // Program level command prefix
+
+// Color codes mapping
+const colorCodes = {
+    reset: '\x1b[0m',
+    bold: '\x1b[1m',
+    cyan: '\x1b[36m',
+    magenta: '\x1b[35m',
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m'
+};
+
+// Function to apply color code to text
+function applyColor(text, color) {
+    const colorCode = colorCodes[color];
+    return colorCode ? `${colorCode}${text}${colorCodes.reset}` : text;
+}
+
+// Greeting message
+const greetingMessage = `${applyColor('Welcome, Game Master!', 'cyan')}
+${applyColor(`To begin, please type ${commandPrefix}npc to select a preset NPC personality.`, 'yellow')}
+${applyColor(`If you need help, you can type ${commandPrefix}help.`, 'yellow')}
+${applyColor('Additionally, you can simply start talking to me, and I will do my best to assist you!', 'yellow')}`;
+
+let chatHistory = [];
+let API_KEY;
+let npcProperties = {};
+
+async function sendMessage(message) {
+    try {
+        const userMessage = { role: 'system', content: `${assistantName}: ${message}` };
+        chatHistory.push(userMessage);
+
+        if (message.startsWith(commandPrefix)) {
+            processCommand(message);
+        } else {
+            const requestBody = {
+                messages: chatHistory,
+                model: 'gpt-3.5-turbo' // Specify the desired model here
+            };
+
+            if (enableDebug && enableRequestBodyLog) {
+                console.log('Request Body:', requestBody);
+            }
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${API_KEY}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = responseData.error ? responseData.error.message : 'Unknown error occurred';
+                throw new Error(`Request failed with status: ${response.status}. Error: ${errorMessage}`);
+            }
+
+            const reply = responseData.choices[0].message.content;
+
+            const assistantReply = reply.startsWith(assistantName) ? reply.slice(assistantName.length + 2) : reply;
+            chatHistory.push({ role: 'system', content: `${assistantName}: ${assistantReply}` });
+
+            if (enableDebug && enableChatHistoryLog) {
+                console.log('Updated Chat History:', chatHistory);
+            }
+
+            console.log(`${applyColor(assistantName, assistantNameColor)}: ${applyColor(assistantReply, assistantTextColor)}`);
+        }
+    } catch (error) {
+        console.error('An error occurred:', error.message);
+    }
+}
+
+function processCommand(message) {
+    const command = message.substring(1); // Remove the prefix from the command
+    // Process different commands here
+    if (command === 'help') {
+        console.log('Available commands:');
+        console.log('/help - Display available commands');
+        console.log('/npc - Select an NPC');
+    } else if (command === 'npc') {
+        displayNPCMenu();
+    } else {
+        console.log(`Command not recognized: ${command}`);
+    }
+}
+
+function displayNPCMenu() {
+    console.log('Available NPCs:');
+    Object.keys(npcProperties).forEach((npcKey, index) => {
+        const npc = npcProperties[npcKey];
+        console.log(`${index + 1}. ${npc.name}`);
+    });
+    console.log('0. None');
+    rl.question('Select an NPC number: ', (npcNumber) => {
+        const npcIndex = parseInt(npcNumber, 10) - 1;
+        if (npcIndex === -1) {
+            console.log('Exiting NPC menu.');
+            promptUser();
+            return;
+        }
+        const selectedNPC = Object.values(npcProperties)[npcIndex];
+        if (selectedNPC) {
+            console.log(`Selected NPC: ${selectedNPC.name}`);
+            const message = `${selectedNPC.name} has been selected. Roleplay ${selectedNPC.name} until requested otherwise. Respond as if you are ${selectedNPC.name} from the ${selectedNPC.source} campaign. Have a character sheet for 5e prepared, including items, and act according to your character's personality.`;
+            sendMessage(message);
+        } else {
+            console.log('Invalid NPC number.');
+        }
+        promptUser();
+    });
+}
+
+function promptUser() {
+    rl.question(`${applyColor(promptSymbol, promptSymbolColor)} `, (message) => {
+        if (message.toLowerCase() === 'quit') {
+            rl.close();
+            return;
+        }
+
+        sendMessage(message)
+            .then(() => promptUser())
+            .catch((error) => {
+                console.error('An error occurred while processing your message.');
+                console.error(error.message);
+                promptUser();
+            });
+    });
+}
+
+function loadNPCProperties() {
+    fs.readFile('npcs.xml', 'utf-8', (err, data) => {
+        if (err) {
+            console.error('Error reading NPC properties file:', err.message);
+            return;
+        }
+
+        parseString(data, (parseErr, result) => {
+            if (parseErr) {
+                console.error('Error parsing NPC properties XML:', parseErr.message);
+                return;
+            }
+
+            const parsedData = result.npcs;
+
+            if (!parsedData || !parsedData.npc) {
+                console.error('Invalid NPC properties XML.');
+                return;
+            }
+
+            const npcs = Array.isArray(parsedData.npc) ? parsedData.npc : [parsedData.npc];
+
+            npcs.forEach((npc, index) => {
+                const npcName = npc.name && npc.name[0];
+                const npcSource = npc.source && npc.source[0];
+
+                if (npcName && npcSource) {
+                    const npcKey = `npc.${index + 1}`;
+                    const npcObject = {
+                        name: npcName,
+                        source: npcSource
+                    };
+
+                    npcProperties[npcKey] = npcObject;
+                }
+            });
+
+            promptUser();
+        });
+    });
+}
+
+function init() {
+    fs.readFile('api.key', 'utf-8', (err, data) => {
+        if (err) {
+            console.error('Error reading API key file:', err.message);
+            return;
+        }
+        API_KEY = data.trim();
+        loadNPCProperties();
+        console.log(greetingMessage); // Display the greeting message
+    });
+}
+
+init();

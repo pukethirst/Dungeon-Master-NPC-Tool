@@ -1,0 +1,22 @@
+{
+  "name": "open-ai-test",
+  "version": "0.0.0",
+  "description": "OpenAI Test",
+  "main": "app.js",
+  "author": {
+    "name": ""
+  },
+  "devDependencies": {
+    "eslint": "^8.21.0"
+  },
+  "eslintConfig": {},
+  "dependencies": {
+    "isomorphic-fetch": "^3.0.0",
+    "properties-reader": "^2.2.0",
+    "readline": "^1.3.0",
+    "xml2js": "^0.6.0"
+  },
+  "bin": {
+    "GM Helper": "./app.js"
+  }
+}

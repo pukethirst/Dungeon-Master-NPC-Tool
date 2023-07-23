@@ -1,0 +1,20 @@
+Dungeon Master NPC Tool - Changelog
+
+
+Version 0.0.2 (Test Version)
+----------------------------
+- Added icon.ico.
+- Created SFX archive to install to program files.
+- SFX Archive creates a desktop icon.
+- Fixed incorrect link in Readme.txt for the API key creation.
+- Renamed the program from Dungeon Master NPC Helper to Dungeon Master NPC Tool.
+
+
+Version 0.0.1 (Test Version)
+----------------------------
+- Initial test release of Dungeon Master NPC Helper.
+- Basic functionality to interact with an assistant and select preset NPC personalities.
+- Ability to ask game mechanics questions for supported games.
+- Customizable API key for OpenAI GPT-3.5 model.
+- Included npcs.xml file for adding custom NPCs.
+- Provided README file with detailed usage instructions.
