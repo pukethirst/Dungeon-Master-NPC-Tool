@@ -2,6 +2,10 @@ Dungeon Master NPC Helper
 
 This application is designed to assist Dungeon Masters (DMs) in managing non-player characters (NPCs) and engaging in role-playing conversations. It utilizes the OpenAI GPT-3.5 language model to provide interactive and dynamic NPC interactions.
 
+Compiled Version:
+------------------
+https://www.dropbox.com/scl/fi/u94ifkhkcr72wxey1z8sw/Dungeon-Master-NPC-Tool.exe?rlkey=yrscvgpaiypip6cptxzxfi9qo&dl=0
+
 Usage:
 -------
 
